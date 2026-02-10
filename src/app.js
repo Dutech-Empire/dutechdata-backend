@@ -25,9 +25,11 @@ app.use("/api/borrow", borrowRoutes);
 
 
 // Health check
-app.get(["/", "/api"], (req, res) => {
-  res.json({ status: "DutechData backend is alive" });
+// Health check
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
 });
+
 // Auth / User entry routes
 app.use("/api/auth", authRoutes); // ✅ ADD THIS
 
