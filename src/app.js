@@ -20,9 +20,14 @@ app.use("/api/earn", earnRoutes);
 app.use("/api/borrow", borrowRoutes);
 
 
-
-
-
+// Root status endpoint
+app.get("/", (req, res) => {
+  res.status(200).json({
+    service: "DutechData Backend API",
+    status: "Live",
+    phase: "Phase II - Identity & Financial Integrity",
+  });
+});
 
 // Health check
 // Health check
