@@ -5,7 +5,7 @@ import { authenticate } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.post("/buy", buyDataController);
+router.post("/buy", authenticate, buyDataController);
 router.get("/test-protected", authenticate, (req, res) => {
   res.json({
     message: "Protected route accessed",

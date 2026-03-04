@@ -1,6 +1,6 @@
 import User from "../models/User.js";
 import { DATA_BUNDLES } from "../utils/dataBundles.js";
-import { applyTransaction } from "./ledger.service.js";
+import { executeTransaction } from "../services/ledger.service.js";
 
 export const buyData = async (uid, bundleId) => {
   const bundle = DATA_BUNDLES[bundleId];
@@ -17,7 +17,7 @@ export const buyData = async (uid, bundleId) => {
   const { mb, price } = bundle;
 
   // 1️⃣ Debit wallet (₦)
-  await applyTransaction({
+  await executeTransaction({
     uid,
     type: "debit",
     source: "buy",
@@ -39,7 +39,7 @@ export const buyData = async (uid, bundleId) => {
     await user.save();
 
     // Ledger record for repayment (MB)
-    await applyTransaction({
+    await executeTransaction({
       uid,
       type: "debit",
       source: "repayment",
@@ -51,7 +51,7 @@ export const buyData = async (uid, bundleId) => {
 
   // 3️⃣ Credit remaining MB as usable
   if (remainingMB > 0) {
-    await applyTransaction({
+    await executeTransaction({
       uid,
       type: "credit",
       source: "buy",

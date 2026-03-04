@@ -3,15 +3,32 @@ dotenv.config({ path: ".env" });
 
 import app from "./app.js";
 import connectDB from "./config/db.js";
+import { startReconciliationJob, runReconciliationNow } from "./jobs/reconciliation.job.js";
 
-connectDB();
+const PORT = process.env.PORT || 3000;
 
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok" });
-});
+const startServer = async () => {
+  try {
+    await connectDB();
+     await runReconciliationNow();
 
-const PORT = process.env.PORT || 5000;
+    
 
-app.listen(PORT, () => {
-  console.log(`DutechData backend running on port ${PORT}`);
-});
+    // 🔴 Start reconciliation AFTER DB is ready
+    startReconciliationJob();
+    
+   
+    app.listen(PORT, () => {
+      console.log(`DutechData backend running on port ${PORT}`);
+
+    });
+    
+    
+
+  } catch (error) {
+    console.error("Server startup failed:", error);
+    process.exit(1);
+  }
+};
+
+startServer();

@@ -5,6 +5,10 @@ import dataRoutes from "./routes/data.routes.js";
 //import devRoutes from "./routes/dev.routes.js";//
 import earnRoutes from "./routes/earn.routes.js";
 import borrowRoutes from "./routes/borrow.routes.js";
+import paymentsRoutes from "./routes/payments.routes.js";
+import transactionRoutes from "./routes/transaction.routes.js";
+import { globalLimiter } from "./middlewares/rateLimit.middleware.js";
+
 
 
 
@@ -13,11 +17,28 @@ import borrowRoutes from "./routes/borrow.routes.js";
 const app = express();
 
 app.use(cors());
+
+// 🔴 Mount payments FIRST (so webhook gets raw body)
+app.use("/api/payments", paymentsRoutes);
+
+
+app.use(
+  "/api/payments/webhook",
+  express.raw({ type: "application/json" })
+);
+
+
+// 🔵 THEN enable JSON parser for everything else
 app.use(express.json());
+app.use(globalLimiter);
+
 app.use("/api/data", dataRoutes);
-//app.use("/api/dev", devRoutes);//
+//app.use("/api/dev", devRoutes);
 app.use("/api/earn", earnRoutes);
 app.use("/api/borrow", borrowRoutes);
+app.use("/api/transactions", transactionRoutes);
+app.use("/api/transactions", transactionRoutes);
+
 
 
 // Root status endpoint

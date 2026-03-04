@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const transactionSchema = new mongoose.Schema(
   {
-    uid: {
+    userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -11,44 +11,68 @@ const transactionSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["credit", "debit"],
       required: true,
+      enum: [
+        "credit",
+        "debit",
+        "borrow",
+        "repayment",
+        "reserve",
+        "release",
+      ],
     },
 
-    source: {
+    currency: {
       type: String,
-      enum: ["buy", "earn", "borrow", "repayment"],
       required: true,
+      enum: ["NGN", "MB"],
     },
 
     amount: {
       type: Number,
       required: true,
-      min: 0,
     },
 
-    currency: {
+    reference: {
       type: String,
-      enum: ["NGN", "MB"],
       required: true,
+      unique: true,   // 🔒 Enforces idempotency at DB level
+      index: true,
+    },
+
+    from: {
+      type: String,
+      default: null,
+    },
+
+    to: {
+      type: String,
+      default: null,
     },
 
     status: {
       type: String,
-      enum: ["pending", "success", "failed"],
-      default: "pending",
+      enum: ["completed", "failed"],
+      default: "completed",
     },
 
-    description: {
-      type: String,
-      default: "",
+    balanceBefore: {
+      type: Number,
+      required: true,
+    },
+
+    balanceAfter: {
+      type: Number,
+      required: true,
+    },
+
+    metadata: {
+      type: Object,
+      default: {},
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
+transactionSchema.index({ userId: 1, createdAt: -1 });
 
-const Transaction = mongoose.model("Transaction", transactionSchema);
-
-export default Transaction;
+export default mongoose.model("Transaction", transactionSchema);

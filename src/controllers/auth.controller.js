@@ -6,6 +6,7 @@ import Session from "../models/Session.js";
 
 
 
+
 // POST /api/auth/request-otp
 export const requestOtp = async (req, res) => {
   try {
@@ -59,7 +60,7 @@ export const requestOtp = async (req, res) => {
 // POST /api/auth/verify-otp
 export const verifyOtp = async (req, res) => {
   try {
-    const { phoneNumber, otp } = req.body;
+    const { phoneNumber, otp, email } = req.body;
 
     if (!phoneNumber || !otp) {
       return res.status(400).json({
@@ -108,9 +109,20 @@ export const verifyOtp = async (req, res) => {
     // Create or fetch user
     let user = await User.findOne({ phone: phoneNumber });
 
-    if (!user) {
-      user = await User.create({ phone: phoneNumber });
-    }
+if (!user) {
+
+  if (!email) {
+    return res.status(400).json({
+      message: "Email is required for new users",
+    });
+  }
+
+  user = await User.create({
+    phone: phoneNumber,
+    email: email,
+  });
+
+}
 
     // ✅ Generate Access Token (15 minutes)
     const accessToken = jwt.sign(
@@ -148,5 +160,92 @@ export const verifyOtp = async (req, res) => {
   } catch (error) {
     console.error("OTP verification error:", error);
     return res.status(500).json({ message: "Internal server error" });
+  }
+};
+// POST /api/auth/refresh-token
+export const refreshAccessToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        message: "Refresh token is required",
+      });
+    }
+
+    // Hash incoming refresh token
+    const refreshTokenHash = crypto
+      .createHash("sha256")
+      .update(refreshToken)
+      .digest("hex");
+
+    // Find session
+    const session = await Session.findOne({ refreshTokenHash });
+
+    if (!session) {
+      return res.status(401).json({
+        message: "Invalid refresh token",
+      });
+    }
+
+    // Check expiration
+    if (session.expiresAt < new Date()) {
+      await Session.deleteOne({ _id: session._id });
+      return res.status(401).json({
+        message: "Refresh token expired",
+      });
+    }
+
+    // Fetch user
+    const user = await User.findById(session.user);
+
+    if (!user || !user.isActive) {
+      await Session.deleteOne({ _id: session._id });
+      return res.status(401).json({
+        message: "User not authorized",
+      });
+    }
+
+    // 🔁 ROTATION STEP — Delete old session
+    await Session.deleteOne({ _id: session._id });
+
+    // Generate new access token
+    const newAccessToken = jwt.sign(
+      {
+        userId: user._id,
+        phone: user.phone,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    // Generate new refresh token
+    const rawRefreshToken = crypto.randomBytes(64).toString("hex");
+
+    const newRefreshTokenHash = crypto
+      .createHash("sha256")
+      .update(rawRefreshToken)
+      .digest("hex");
+
+    const refreshExpiresAt = new Date(
+      Date.now() + 7 * 24 * 60 * 60 * 1000
+    );
+
+    await Session.create({
+      user: user._id,
+      refreshTokenHash: newRefreshTokenHash,
+      expiresAt: refreshExpiresAt,
+    });
+
+    return res.status(200).json({
+      accessToken: newAccessToken,
+      refreshToken: rawRefreshToken,
+    });
+
+  } catch (error) {
+    console.error("Refresh token error:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+    });
   }
 };

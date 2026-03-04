@@ -9,6 +9,14 @@ const userSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    email: {
+  type: String,
+  required: true,
+  unique: true,
+  lowercase: true,
+  trim: true,
+  index: true,
+},
 
     // Wallet (₦)
     walletBalance: {
@@ -16,13 +24,21 @@ const userSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    mbBalance: {
+  type: Number,
+  default: 0
+},
 
     // Data balances (MB)
-    usableMB: {
+    usableMB:{
       type: Number,
       default: 0,
       min: 0,
     },
+    isFrozen: {
+  type: Boolean,
+  default: false
+},
 
     reservedMB: {
       type: Number,
