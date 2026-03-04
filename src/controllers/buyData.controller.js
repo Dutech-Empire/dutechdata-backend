@@ -2,16 +2,19 @@ import { buyData } from "../services/buyData.service.js";
 
 export const buyDataController = async (req, res) => {
   try {
-    const { uid, bundleId } = req.body;
+    const { bundleId } = req.body;
 
-    if (!uid || !bundleId) {
+    if (!bundleId) {
       return res.status(400).json({
         success: false,
-        message: "uid and bundleId are required",
+        message: "bundleId is required",
       });
     }
 
-    const result = await buyData(uid, bundleId);
+    // 🔒 Identity comes ONLY from middleware
+    const userId = req.user._id;
+
+    const result = await buyData(userId, bundleId);
 
     return res.status(200).json({
       success: true,

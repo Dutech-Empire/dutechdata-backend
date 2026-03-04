@@ -1,5 +1,5 @@
 import User from "../models/User.js";
-import { applyTransaction } from "./ledger.service.js";
+import { executeTransaction } from "../services/ledger.service.js";
 import { EARN_RULES } from "../utils/earnRules.js";
 
 const isSameDay = (d1, d2) =>
@@ -30,7 +30,7 @@ export const earnData = async (uid) => {
   );
 
   // Ledger credit (MB)
-  await applyTransaction({
+  await executeTransaction({
     uid,
     type: "credit",
     source: "earn",

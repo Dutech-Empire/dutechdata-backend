@@ -2,16 +2,10 @@ import { borrowMB } from "../services/borrow.service.js";
 
 export const borrowController = async (req, res) => {
   try {
-    const { uid } = req.body;
+    // 🔒 Identity comes only from middleware
+    const userId = req.user._id;
 
-    if (!uid) {
-      return res.status(400).json({
-        success: false,
-        message: "uid is required",
-      });
-    }
-
-    const result = await borrowMB(uid);
+    const result = await borrowMB(userId);
 
     return res.status(200).json({
       success: true,

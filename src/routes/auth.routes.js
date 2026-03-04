@@ -1,12 +1,11 @@
 import express from "express";
-import { requestOtp, verifyOtp } from "../controllers/auth.controller.js";
+import { requestOtp, verifyOtp, refreshAccessToken } from "../controllers/auth.controller.js";
+import { otpLimiter } from "../middlewares/rateLimit.middleware.js";
 
 const router = express.Router();
 
-// Request OTP
-router.post("/request-otp", requestOtp);
-
-// Verify OTP
+router.post("/request-otp", otpLimiter, requestOtp);
 router.post("/verify-otp", verifyOtp);
+router.post("/refresh", refreshAccessToken);
 
 export default router;
