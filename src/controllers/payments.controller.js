@@ -11,21 +11,22 @@ import PaymentIntent from "../models/PaymentIntent.js";
 // ===============================
 export const initializePaymentController = async (req, res) => {
   try {
-    const user = req.user;
+
     const { amount } = req.body;
 
-    if (!amount || amount <= 0) {
-      return res.status(400).json({
-        message: "Valid amount is required",
-      });
-    }
+    const user = await User.findById(req.user.userId);
 
     if (!user) {
-      return res.status(401).json({
-        message: "Unauthorized user",
+      return res.status(404).json({
+        message: "User not found",
       });
     }
 
+    if (!user.email) {
+      return res.status(400).json({
+        message: "User email is required",
+      });
+    }
     const paymentData = await initializePayment({
       user,
       amount,
