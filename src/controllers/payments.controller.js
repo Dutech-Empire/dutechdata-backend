@@ -4,6 +4,7 @@ import axios from "axios";
 import Transaction from "../models/Transaction.js";
 import { executeTransaction } from "../services/ledger.service.js";
 import PaymentIntent from "../models/PaymentIntent.js";
+import User from "../models/User.js";
 
 
 // ===============================
