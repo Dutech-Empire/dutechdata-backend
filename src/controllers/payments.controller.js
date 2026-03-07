@@ -10,12 +10,21 @@ import User from "../models/User.js";
 // ===============================
 // 🔹 INITIALIZE PAYMENT
 // ===============================
+
+    
 export const initializePaymentController = async (req, res) => {
   try {
-
     const { amount } = req.body;
 
-    const user = await User.findById(req.user.userId);
+    // Validate amount
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        message: "Valid amount is required",
+      });
+    }
+
+    // User already attached by auth middleware
+    const user = req.user;
 
     if (!user) {
       return res.status(404).json({
@@ -28,6 +37,8 @@ export const initializePaymentController = async (req, res) => {
         message: "User email is required",
       });
     }
+
+    // Initialize Paystack transaction
     const paymentData = await initializePayment({
       user,
       amount,
@@ -35,14 +46,15 @@ export const initializePaymentController = async (req, res) => {
 
     console.log("🔎 Paystack initialize response:", paymentData);
 
-    // 🔥 FIX HERE
     const reference = paymentData.reference;
 
+    // Store payment intent
     await PaymentIntent.create({
       userId: user._id,
       reference,
-      expectedAmount: amount * 100, // store in kobo
+      expectedAmount: amount * 100, // stored in kobo
       currency: "NGN",
+      status: "initialized",
     });
 
     return res.status(200).json({
@@ -52,12 +64,12 @@ export const initializePaymentController = async (req, res) => {
 
   } catch (error) {
     console.error("Initialize payment error:", error);
+
     return res.status(500).json({
       message: error.message || "Internal server error",
     });
   }
 };
-
 
 // ===============================
 // 🔹 PAYSTACK WEBHOOK
