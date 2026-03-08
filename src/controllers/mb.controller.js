@@ -56,3 +56,52 @@ export const earnMBController = async (req, res) => {
     });
   }
 };
+export const borrowMBController = async (req, res) => {
+  try {
+
+    const user = req.user;
+    const BORROW_AMOUNT = 50;
+
+    // Borrow only allowed if usableMB is zero
+    if (user.usableMB > 0) {
+      return res.status(400).json({
+        message: "Borrow allowed only when usable MB is zero"
+      });
+    }
+
+    // Prevent multiple borrow
+    if (user.borrowedMB > 0) {
+      return res.status(400).json({
+        message: "Existing borrowed MB must be repaid first"
+      });
+    }
+
+    const reference = "MBBORROW_" + crypto.randomUUID();
+
+    const result = await executeMBTransaction({
+      userId: user._id,
+      type: "borrow",
+      amount: BORROW_AMOUNT,
+      reference,
+      metadata: {
+        source: "emergency-borrow"
+      }
+    });
+
+    return res.status(200).json({
+      message: "Emergency MB borrowed successfully",
+      borrowed: BORROW_AMOUNT,
+      balanceBefore: result.balanceBefore,
+      balanceAfter: result.balanceAfter
+    });
+
+  } catch (error) {
+
+    console.error("Borrow MB error:", error);
+
+    return res.status(500).json({
+      message: "Internal server error"
+    });
+
+  }
+};
