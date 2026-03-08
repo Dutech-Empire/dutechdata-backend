@@ -8,6 +8,8 @@ import borrowRoutes from "./routes/borrow.routes.js";
 import paymentsRoutes from "./routes/payments.routes.js";
 import transactionRoutes from "./routes/transaction.routes.js";
 import { globalLimiter } from "./middlewares/rateLimit.middleware.js";
+import mbRoutes from "./routes/mb.routes.js";
+
 
 
 
@@ -38,7 +40,7 @@ app.use("/api/earn", earnRoutes);
 app.use("/api/borrow", borrowRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/transactions", transactionRoutes);
-
+app.use("/api/mb", mbRoutes);
 
 
 // Root status endpoint
