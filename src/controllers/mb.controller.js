@@ -105,3 +105,98 @@ export const borrowMBController = async (req, res) => {
 
   }
 };
+export const reserveMBController = async (req, res) => {
+  try {
+
+    const user = req.user;
+    const { amount } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        message: "Valid amount required"
+      });
+    }
+
+    if (user.usableMB < amount) {
+      return res.status(400).json({
+        message: "Not enough usable MB to reserve"
+      });
+    }
+
+    const reference = "MBRESERVE_" + crypto.randomUUID();
+
+    const result = await executeMBTransaction({
+      userId: user._id,
+      type: "reserve",
+      amount,
+      reference,
+      metadata: {
+        source: "reserve-protection"
+      }
+    });
+
+    return res.status(200).json({
+      message: "MB reserved successfully",
+      reserved: amount,
+      balanceBefore: result.balanceBefore,
+      balanceAfter: result.balanceAfter
+    });
+
+  } catch (error) {
+
+    console.error("Reserve MB error:", error);
+
+    return res.status(500).json({
+      message: "Internal server error"
+    });
+
+  }
+};export const releaseMBController = async (req, res) => {
+  try {
+
+    const user = req.user;
+    const { amount } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        message: "Valid amount required"
+      });
+    }
+
+    if (user.reservedMB < amount) {
+      return res.status(400).json({
+        message: "Not enough reserved MB"
+      });
+    }
+
+    const reference = "MBRELEASE_" + crypto.randomUUID();
+
+    const result = await executeMBTransaction({
+      userId: user._id,
+      type: "release",
+      amount,
+      reference,
+      metadata: {
+        source: "release-reserve"
+      }
+    });
+
+    return res.status(200).json({
+      message: "Reserved MB released",
+      released: amount,
+      balanceBefore: result.balanceBefore,
+      balanceAfter: result.balanceAfter
+    });
+
+  } catch (error) {
+
+    console.error("Release MB error:", error);
+
+    return res.status(500).json({
+      message: "Internal server error"
+    });
+
+  }
+};
+
+
