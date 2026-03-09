@@ -25,9 +25,22 @@ export const executeMBTransaction = async ({
 
     // CREDIT MB
     if (type === "credit") {
-      balanceAfter += amount;
-    }
 
+  let remaining = amount;
+
+  // Repay borrowed MB first
+  if (user.borrowedMB > 0) {
+
+    const repayment = Math.min(user.borrowedMB, remaining);
+
+    user.borrowedMB -= repayment;
+    remaining -= repayment;
+
+  }
+
+  // Remaining MB becomes usable
+  balanceAfter += remaining;
+}
     // DEBIT MB
     if (type === "debit") {
       if (balanceBefore < amount) {
