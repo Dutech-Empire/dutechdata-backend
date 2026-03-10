@@ -4,6 +4,7 @@ dotenv.config({ path: ".env" });
 import app from "./app.js";
 import connectDB from "./config/db.js";
 import { startReconciliationJob, runReconciliationNow } from "./jobs/reconciliation.job.js";
+import { runMBReconciliation } from "./services/mbReconciliation.service.js";
 
 const PORT = process.env.PORT || 3000;
 
@@ -11,6 +12,7 @@ const startServer = async () => {
   try {
     await connectDB();
      await runReconciliationNow();
+     await runMBReconciliation();
 
     
 
