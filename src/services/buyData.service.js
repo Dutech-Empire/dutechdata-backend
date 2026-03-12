@@ -4,6 +4,7 @@ import { executeTransaction } from "../services/ledger.service.js";
 import { generateReference } from "../utils/generateReference.js";
 
 export const buyData = async (uid, bundleId) => {
+
   const bundle = DATA_BUNDLES[bundleId];
   const reference = generateReference("DATA");
 
@@ -19,56 +20,63 @@ export const buyData = async (uid, bundleId) => {
   const { mb, price } = bundle;
 
   // 1️⃣ Debit wallet (₦)
- await executeTransaction({
-  userId: uid,
-  type: "debit",
-  amount: price,
-  currency: "NGN",
-  reference,
-  metadata: {
-    action: "buy-data",
-    bundleId,
-  },
-});
-  // 2️⃣ Repay borrowed MB first (if any)
+  await executeTransaction({
+    userId: uid,
+    type: "debit",
+    amount: price,
+    currency: "NGN",
+    reference,
+    metadata: {
+      action: "buy-data",
+      bundleId,
+    },
+  });
+
+  // 2️⃣ Repay borrowed MB first
   let remainingMB = mb;
+  let repaidBorrowedMB = 0;
 
   if (user.borrowedMB > 0) {
+
     const repayAmount = Math.min(user.borrowedMB, remainingMB);
 
-    // Reduce borrowed MB
+    // update borrowed balance locally
     user.borrowedMB -= repayAmount;
     remainingMB -= repayAmount;
+    repaidBorrowedMB = repayAmount;
 
     await user.save();
 
-    // Ledger record for repayment (MB)
     await executeTransaction({
-      uid,
-      type: "debit",
-      source: "repayment",
+      userId: uid,
+      type: "repayment",
       amount: repayAmount,
       currency: "MB",
-      description: "Auto repayment of borrowed MB",
+      reference,
+      metadata: {
+        action: "borrow-repayment",
+      },
     });
   }
 
   // 3️⃣ Credit remaining MB as usable
-  await executeTransaction({
-  userId: uid,
-  type: "credit",
-  amount: remainingMB,
-  currency: "MB",
-  reference,
-  metadata: {
-    action: "buy-data",
-    bundleId,
-  },
-});
+  if (remainingMB > 0) {
+    await executeTransaction({
+      userId: uid,
+      type: "credit",
+      amount: remainingMB,
+      currency: "MB",
+      reference,
+      metadata: {
+        action: "buy-data",
+        bundleId,
+      },
+    });
+  }
 
   return {
     purchasedMB: mb,
-    repaidBorrowedMB: mb - remainingMB,
+    repaidBorrowedMB,
     usableMBAdded: remainingMB,
   };
 };
