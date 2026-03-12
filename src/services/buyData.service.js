@@ -13,6 +13,7 @@ export const buyData = async (uid, bundleId) => {
   }
 
   const user = await User.findById(uid);
+
   if (!user) {
     throw new Error("User not found");
   }
@@ -32,7 +33,7 @@ export const buyData = async (uid, bundleId) => {
     },
   });
 
-  // 2️⃣ Repay borrowed MB first
+  // 2️⃣ Repay borrowed MB internally
   let remainingMB = mb;
   let repaidBorrowedMB = 0;
 
@@ -40,27 +41,17 @@ export const buyData = async (uid, bundleId) => {
 
     const repayAmount = Math.min(user.borrowedMB, remainingMB);
 
-    // update borrowed balance locally
     user.borrowedMB -= repayAmount;
     remainingMB -= repayAmount;
+
     repaidBorrowedMB = repayAmount;
 
     await user.save();
-
-    await executeTransaction({
-      userId: uid,
-      type: "repayment",
-      amount: repayAmount,
-      currency: "MB",
-      reference,
-      metadata: {
-        action: "borrow-repayment",
-      },
-    });
   }
 
   // 3️⃣ Credit remaining MB as usable
   if (remainingMB > 0) {
+
     await executeTransaction({
       userId: uid,
       type: "credit",
@@ -72,6 +63,7 @@ export const buyData = async (uid, bundleId) => {
         bundleId,
       },
     });
+
   }
 
   return {
