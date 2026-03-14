@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import User from "../models/User.js";
 import Transaction from "../models/Transaction.js";
+
 export const executeTransaction = async ({
   userId,
   type,
@@ -10,7 +11,9 @@ export const executeTransaction = async ({
   from = null,
   to = null,
   metadata = {},
+  session = null,
 }) => {
+
   if (!userId || !type || !amount || !currency || !reference) {
     throw new Error("Invalid transaction payload");
   }
@@ -19,37 +22,36 @@ export const executeTransaction = async ({
     throw new Error("Amount must be greater than zero");
   }
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  let internalSession = session;
+
+  if (!internalSession) {
+    internalSession = await mongoose.startSession();
+    internalSession.startTransaction();
+  }
 
   try {
-    // 🔹 FETCH USER INSIDE SESSION
-    const user = await User.findById(userId).session(session);
+
+    const user = await User.findById(userId).session(internalSession);
 
     if (!user) {
       throw new Error("User not found");
     }
 
-    // 🔒 FREEZE GUARD — CORRECT LOCATION
     if (user.isFrozen) {
       throw new Error("Account is frozen. Transactions are disabled.");
     }
-
-    // 🔹 Continue with your existing mutation logic below...
-
-
 
     let balanceBefore;
     let balanceAfter;
 
     // ===============================
-    // 💰 NGN LOGIC (CONCURRENCY SAFE)
+    // 💰 NGN WALLET LOGIC
     // ===============================
     if (currency === "NGN") {
 
       if (type === "debit") {
 
-        const user = await User.findOneAndUpdate(
+        const updatedUser = await User.findOneAndUpdate(
           {
             _id: userId,
             walletBalance: { $gte: amount },
@@ -59,43 +61,39 @@ export const executeTransaction = async ({
           },
           {
             new: true,
-            session,
+            session: internalSession,
           }
         );
 
-        if (!user) {
+        if (!updatedUser) {
           throw new Error("Insufficient wallet balance");
         }
 
-        balanceAfter = user.walletBalance;
+        balanceAfter = updatedUser.walletBalance;
         balanceBefore = balanceAfter + amount;
       }
 
       if (type === "credit") {
 
-        const user = await User.findByIdAndUpdate(
+        const updatedUser = await User.findByIdAndUpdate(
           userId,
           { $inc: { walletBalance: amount } },
-          { new: true, session }
+          { new: true, session: internalSession }
         );
 
-        if (!user) {
-          throw new Error("User not found");
-        }
-
-        balanceAfter = user.walletBalance;
+        balanceAfter = updatedUser.walletBalance;
         balanceBefore = balanceAfter - amount;
       }
     }
 
     // ===============================
-    // 📶 MB LOGIC (CONCURRENCY SAFE)
+    // 📶 MB WALLET LOGIC
     // ===============================
     if (currency === "MB") {
 
       if (type === "debit") {
 
-        const user = await User.findOneAndUpdate(
+        const updatedUser = await User.findOneAndUpdate(
           {
             _id: userId,
             usableMB: { $gte: amount },
@@ -105,147 +103,34 @@ export const executeTransaction = async ({
           },
           {
             new: true,
-            session,
+            session: internalSession,
           }
         );
 
-        if (!user) {
+        if (!updatedUser) {
           throw new Error("Insufficient MB balance");
         }
 
-        balanceAfter = user.usableMB;
+        balanceAfter = updatedUser.usableMB;
         balanceBefore = balanceAfter + amount;
       }
 
       if (type === "credit") {
 
-        const user = await User.findByIdAndUpdate(
+        const updatedUser = await User.findByIdAndUpdate(
           userId,
           { $inc: { usableMB: amount } },
-          { new: true, session }
+          { new: true, session: internalSession }
         );
 
-        if (!user) {
-          throw new Error("User not found");
-        }
-
-        balanceAfter = user.usableMB;
+        balanceAfter = updatedUser.usableMB;
         balanceBefore = balanceAfter - amount;
       }
+    }
 
     // ===============================
-// 📶 MB ADVANCED OPERATIONS (ATOMIC SAFE)
-// ===============================
-
-if (currency === "MB") {
-
-  // 🔹 BORROW
-  if (type === "borrow") {
-
-    const user = await User.findOneAndUpdate(
-      {
-        _id: userId,
-        usableMB: 0,
-        borrowedMB: 0,
-      },
-      {
-        $inc: {
-          usableMB: amount,
-          borrowedMB: amount,
-        },
-      },
-      { new: true, session }
-    );
-
-    if (!user) {
-      throw new Error("Borrow conditions not met");
-    }
-
-    balanceBefore = 0;
-    balanceAfter = user.usableMB;
-  }
-
-  // 🔹 REPAYMENT
-  if (type === "repayment") {
-
-    const user = await User.findOneAndUpdate(
-      {
-        _id: userId,
-        borrowedMB: { $gt: 0 },
-        usableMB: { $gte: amount },
-      },
-      {
-        $inc: {
-          usableMB: -amount,
-          borrowedMB: -amount,
-        },
-      },
-      { new: true, session }
-    );
-
-    if (!user) {
-      throw new Error("Repayment conditions not met");
-    }
-
-    balanceAfter = user.usableMB;
-    balanceBefore = balanceAfter + amount;
-  }
-
-  // 🔹 RESERVE
-  if (type === "reserve") {
-
-    const user = await User.findOneAndUpdate(
-      {
-        _id: userId,
-        usableMB: { $gte: amount },
-      },
-      {
-        $inc: {
-          usableMB: -amount,
-          reservedMB: amount,
-        },
-      },
-      { new: true, session }
-    );
-
-    if (!user) {
-      throw new Error("Insufficient usable MB");
-    }
-
-    balanceAfter = user.usableMB;
-    balanceBefore = balanceAfter + amount;
-  }
-
-  // 🔹 RELEASE
-  if (type === "release") {
-
-    const user = await User.findOneAndUpdate(
-      {
-        _id: userId,
-        reservedMB: { $gte: amount },
-      },
-      {
-        $inc: {
-          reservedMB: -amount,
-          usableMB: amount,
-        },
-      },
-      { new: true, session }
-    );
-
-    if (!user) {
-      throw new Error("Insufficient reserved MB");
-    }
-
-    balanceAfter = user.usableMB;
-    balanceBefore = balanceAfter - amount;
-  }
-}  
-      
-    
-    }
-
-    // 2️⃣ CREATE LEDGER ENTRY
+    // 📘 LEDGER RECORD
+    // ===============================
     const transaction = await Transaction.create(
       [
         {
@@ -262,17 +147,23 @@ if (currency === "MB") {
           metadata,
         },
       ],
-      { session }
+      { session: internalSession }
     );
 
-    await session.commitTransaction();
-    session.endSession();
+    if (!session) {
+      await internalSession.commitTransaction();
+      internalSession.endSession();
+    }
 
     return transaction[0];
 
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
+
+    if (!session) {
+      await internalSession.abortTransaction();
+      internalSession.endSession();
+    }
+
     throw error;
   }
 };
