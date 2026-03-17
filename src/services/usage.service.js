@@ -53,11 +53,48 @@ export const getUsageStats = async (userId) => {
       user.usableMB / averageDailyUsage
     );
   }
+  const insight = generateInsight({
+  todayUsage,
+  averageDailyUsage,
+  estimatedDaysRemaining
+});
+return {
+  todayUsage,
+  weeklyUsage,
+  averageDailyUsage,
+  estimatedDaysRemaining,
+  insight
+};
+};
+const generateInsight = ({
+  todayUsage,
+  averageDailyUsage,
+  estimatedDaysRemaining
+}) => {
 
-  return {
-    todayUsage,
-    weeklyUsage,
-    averageDailyUsage,
-    estimatedDaysRemaining
-  };
+  if (todayUsage === 0) {
+    return "You haven’t used any data today.";
+  }
+
+  if (averageDailyUsage < 50) {
+    return "You are using data lightly. Your data will last longer.";
+  }
+
+  if (averageDailyUsage >= 50 && averageDailyUsage <= 150) {
+    return "Your data usage is moderate and well balanced.";
+  }
+
+  if (averageDailyUsage > 150) {
+    return "You are using data heavily. Consider reserving data or monitoring usage.";
+  }
+
+  if (estimatedDaysRemaining > 5) {
+    return "Your data should last several days comfortably.";
+  }
+
+  if (estimatedDaysRemaining <= 2) {
+    return "Your data may run out soon. Consider topping up.";
+  }
+
+  return "Your data usage is being tracked successfully.";
 };
