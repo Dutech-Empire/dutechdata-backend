@@ -1,17 +1,15 @@
-import { getTodayUsage } from "../services/usage.service.js";
+import { getUsageStats } from "../services/usage.service.js";
 
-export const getUsageStats = async (req, res) => {
+export const getUsageStatsController = async (req, res) => {
   try {
 
     const userId = req.user._id;
 
-    const todayUsage = await getTodayUsage(userId);
+    const stats = await getUsageStats(userId);
 
     return res.status(200).json({
       success: true,
-      data: {
-        todayUsage
-      }
+      data: stats
     });
 
   } catch (error) {
