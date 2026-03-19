@@ -2,43 +2,47 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
-    // Identity
+    // =========================
+    // 🧍 Identity
+    // =========================
     phone: {
       type: String,
       required: true,
       unique: true,
       index: true,
     },
-    email: {
-  type: String,
-  required: true,
-  unique: true,
-  lowercase: true,
-  trim: true,
-  index: true,
-},
 
-    // Wallet (₦)
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      index: true,
+    },
+
+    // =========================
+    // 💰 Wallet (₦)
+    // =========================
     walletBalance: {
       type: Number,
       default: 0,
       min: 0,
     },
-    mbBalance: {
-  type: Number,
-  default: 0
-},
 
-    // Data balances (MB)
-    usableMB:{
+    // =========================
+    // 📶 Data Balances (MB)
+    // =========================
+    mbBalance: {
+      type: Number,
+      default: 0,
+    },
+
+    usableMB: {
       type: Number,
       default: 0,
       min: 0,
     },
-    isFrozen: {
-  type: Boolean,
-  default: false
-},
 
     reservedMB: {
       type: Number,
@@ -52,7 +56,22 @@ const userSchema = new mongoose.Schema(
       min: 0,
     },
 
-    // Earn logic
+    // =========================
+    // 🚫 Account State
+    // =========================
+    isFrozen: {
+      type: Boolean,
+      default: false,
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+
+    // =========================
+    // 🎯 EARN SYSTEM (HARDENED)
+    // =========================
     earnedToday: {
       type: Number,
       default: 0,
@@ -64,10 +83,37 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
-    // Status
-    isActive: {
-      type: Boolean,
-      default: true,
+    lastEarnReset: {
+      type: Date,
+      default: Date.now,
+    },
+
+    earnAttempts: {
+      type: Number,
+      default: 0,
+    },
+
+    // =========================
+    // 🛡️ SECURITY TRACKING (NEW)
+    // =========================
+    lastIP: {
+      type: String,
+      default: null,
+    },
+
+    lastUserAgent: {
+      type: String,
+      default: null,
+    },
+
+    knownIPs: {
+      type: [String],
+      default: [],
+    },
+
+    knownDevices: {
+      type: [String],
+      default: [],
     },
   },
   {

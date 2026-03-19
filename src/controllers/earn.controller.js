@@ -11,7 +11,7 @@ export const earnDataController = async (req, res) => {
       });
     }
 
-    const result = await earnData(uid);
+    const result = await earnData(req.user._id, req);
 
     return res.status(200).json({
       success: true,
