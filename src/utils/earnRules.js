@@ -1,4 +1,5 @@
 export const EARN_RULES = {
-  EARN_MB: 20,        // MB per earn action
-  DAILY_CAP_MB: 100,  // max MB per day
+  EARN_MB: 50,
+  DAILY_CAP_MB: 200,
+  COOLDOWN_SECONDS: 60 // 🔥 NEW
 };
