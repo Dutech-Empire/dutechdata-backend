@@ -1,19 +1,33 @@
+
 import User from "../models/User.js";
 import { executeTransaction } from "../services/ledger.service.js";
 import { EARN_RULES } from "../utils/earnRules.js";
 import { trackUserAccess } from "../utils/securityTracker.js";
 
-export const earnData = async (uid) => {
+export const earnData = async (uid, req) => {
   const user = await User.findById(uid);
-  trackUserAccess(req, user);
   if (!user) {
     throw new Error("User not found");
   }
 
+  // 🛡️ Track access
+  trackUserAccess(req, user);
+
   const now = new Date();
 
-  
-// =========================
+  // =========================
+  // 🔄 1. DAILY RESET (FIRST)
+  // =========================
+  const hoursSinceReset =
+    (now - new Date(user.lastEarnReset || now)) / (1000 * 60 * 60);
+
+  if (hoursSinceReset >= 24) {
+    user.earnedToday = 0;
+    user.lastEarnReset = now;
+    user.earnAttempts = 0;
+  }
+
+  // =========================
   // ⏳ 2. COOLDOWN CHECK
   // =========================
   if (user.lastEarnedAt) {
@@ -27,27 +41,16 @@ export const earnData = async (uid) => {
       throw new Error(`Wait ${wait}s before earning again`);
     }
   }
+
   // =========================
-  // 🚫 2. DAILY CAP CHECK
+  // 🚫 3. DAILY CAP CHECK
   // =========================
   if (user.earnedToday >= EARN_RULES.DAILY_CAP_MB) {
     throw new Error("Daily earn limit reached");
   }
-// =========================
-  // 🔄 3. DAILY RESET (24h rolling)
-  // =========================
- 
- const hoursSinceReset =
-    (now - new Date(user.lastEarnReset || now)) / (1000 * 60 * 60);
-
-  if (hoursSinceReset >= 24) {
-    user.earnedToday = 0;
-    user.lastEarnReset = now;
-    user.earnAttempts = 0;
-  }
 
   // =========================
-  // 🚨 4. ABUSE DETECTION (BASIC)
+  // 🚨 4. ABUSE DETECTION
   // =========================
   user.earnAttempts = (user.earnAttempts || 0) + 1;
 
@@ -64,7 +67,7 @@ export const earnData = async (uid) => {
   );
 
   // =========================
-  // 💰 6. LEDGER EXECUTION (CRITICAL)
+  // 💰 6. LEDGER
   // =========================
   await executeTransaction({
     uid,
@@ -76,16 +79,13 @@ export const earnData = async (uid) => {
   });
 
   // =========================
-  // 📊 7. UPDATE USER STATE
+  // 📊 7. UPDATE USER
   // =========================
   user.earnedToday += earnAmount;
   user.lastEarnedAt = now;
 
   await user.save();
 
-  // =========================
-  // 📦 8. RESPONSE
-  // =========================
   return {
     earnedMB: earnAmount,
     earnedToday: user.earnedToday,
