@@ -12,27 +12,9 @@ export const earnData = async (uid) => {
 
   const now = new Date();
 
-  // =========================
-  // 🔄 1. DAILY RESET (24h rolling)
-  // =========================
-  const hoursSinceReset =
-    (now - new Date(user.lastEarnReset || now)) / (1000 * 60 * 60);
-
-  if (hoursSinceReset >= 24) {
-    user.earnedToday = 0;
-    user.lastEarnReset = now;
-    user.earnAttempts = 0;
-  }
-
-  // =========================
-  // 🚫 2. DAILY CAP CHECK
-  // =========================
-  if (user.earnedToday >= EARN_RULES.DAILY_CAP_MB) {
-    throw new Error("Daily earn limit reached");
-  }
-
-  // =========================
-  // ⏳ 3. COOLDOWN CHECK
+  
+// =========================
+  // ⏳ 2. COOLDOWN CHECK
   // =========================
   if (user.lastEarnedAt) {
     const secondsSinceLastEarn =
@@ -44,6 +26,24 @@ export const earnData = async (uid) => {
       );
       throw new Error(`Wait ${wait}s before earning again`);
     }
+  }
+  // =========================
+  // 🚫 2. DAILY CAP CHECK
+  // =========================
+  if (user.earnedToday >= EARN_RULES.DAILY_CAP_MB) {
+    throw new Error("Daily earn limit reached");
+  }
+// =========================
+  // 🔄 3. DAILY RESET (24h rolling)
+  // =========================
+ 
+ const hoursSinceReset =
+    (now - new Date(user.lastEarnReset || now)) / (1000 * 60 * 60);
+
+  if (hoursSinceReset >= 24) {
+    user.earnedToday = 0;
+    user.lastEarnReset = now;
+    user.earnAttempts = 0;
   }
 
   // =========================
