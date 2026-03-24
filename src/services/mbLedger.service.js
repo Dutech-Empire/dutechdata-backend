@@ -9,6 +9,30 @@ export const executeMBTransaction = async ({
   reference,
   metadata = {},
 }) => {
+  // =========================
+  // 🛑 1. VALIDATION (CRITICAL)
+  // =========================
+  if (!userId || !type || !amount) {
+    throw new Error("Invalid transaction payload");
+  }
+
+  if (amount <= 0) {
+    throw new Error("Amount must be greater than zero");
+  }
+
+  const allowedTypes = [
+    "credit",
+    "debit",
+    "borrow",
+    "repayment",
+    "reserve",
+    "release",
+  ];
+
+  if (!allowedTypes.includes(type)) {
+    throw new Error("Invalid transaction type");
+  }
+
   const session = await User.startSession();
 
   try {
@@ -23,33 +47,37 @@ export const executeMBTransaction = async ({
     const balanceBefore = user.usableMB || 0;
     let balanceAfter = balanceBefore;
 
-    // CREDIT MB
+    // =========================
+    // 💰 CREDIT MB
+    // =========================
     if (type === "credit") {
+      let remaining = amount;
 
-  let remaining = amount;
+      // Repay borrowed first
+      if (user.borrowedMB > 0) {
+        const repayment = Math.min(user.borrowedMB, remaining);
 
-  // Repay borrowed MB first
-  if (user.borrowedMB > 0) {
+        user.borrowedMB -= repayment;
+        remaining -= repayment;
+      }
 
-    const repayment = Math.min(user.borrowedMB, remaining);
+      balanceAfter += remaining;
+    }
 
-    user.borrowedMB -= repayment;
-    remaining -= repayment;
-
-  }
-
-  // Remaining MB becomes usable
-  balanceAfter += remaining;
-}
-    // DEBIT MB
+    // =========================
+    // 💸 DEBIT MB
+    // =========================
     if (type === "debit") {
       if (balanceBefore < amount) {
         throw new Error("Insufficient MB");
       }
+
       balanceAfter -= amount;
     }
 
-    // BORROW MB
+    // =========================
+    // 🆘 BORROW MB
+    // =========================
     if (type === "borrow") {
       if (balanceBefore > 0) {
         throw new Error("Borrow allowed only when MB is zero");
@@ -59,16 +87,21 @@ export const executeMBTransaction = async ({
       balanceAfter += amount;
     }
 
-    // REPAY MB
+    // =========================
+    // 🔁 REPAYMENT
+    // =========================
     if (type === "repayment") {
       if (user.borrowedMB <= 0) {
         throw new Error("No borrowed MB to repay");
       }
 
-      user.borrowedMB -= amount;
+      const repayment = Math.min(user.borrowedMB, amount);
+      user.borrowedMB -= repayment;
     }
 
-    // RESERVE MB
+    // =========================
+    // 🔒 RESERVE
+    // =========================
     if (type === "reserve") {
       if (balanceBefore < amount) {
         throw new Error("Not enough MB to reserve");
@@ -78,7 +111,9 @@ export const executeMBTransaction = async ({
       balanceAfter -= amount;
     }
 
-    // RELEASE MB
+    // =========================
+    // 🔓 RELEASE
+    // =========================
     if (type === "release") {
       if (user.reservedMB < amount) {
         throw new Error("Not enough reserved MB");
@@ -88,17 +123,23 @@ export const executeMBTransaction = async ({
       balanceAfter += amount;
     }
 
+    // =========================
+    // 🧾 UPDATE USER
+    // =========================
     user.usableMB = balanceAfter;
 
     await user.save({ session });
 
+    // =========================
+    // 🧾 RECORD TRANSACTION
+    // =========================
     await MBTransaction.create(
       [
         {
           userId,
           type,
           amount,
-          reference,
+          reference: reference || "MB_" + crypto.randomUUID(),
           balanceBefore,
           balanceAfter,
           metadata,
@@ -114,6 +155,7 @@ export const executeMBTransaction = async ({
       balanceBefore,
       balanceAfter,
     };
+
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
