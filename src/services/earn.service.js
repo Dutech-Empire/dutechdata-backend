@@ -1,6 +1,5 @@
-
 import User from "../models/User.js";
-import { executeTransaction } from "../services/ledger.service.js";
+import { executeMBTransaction } from "../services/mbLedger.service.js";
 import { EARN_RULES } from "../utils/earnRules.js";
 import { trackUserAccess } from "../utils/securityTracker.js";
 
@@ -10,7 +9,9 @@ export const earnData = async (uid, req) => {
     throw new Error("User not found");
   }
 
-  // 🛡️ Track access
+  // =========================
+  // 🛡️ TRACK USER ACCESS
+  // =========================
   trackUserAccess(req, user);
 
   const now = new Date();
@@ -67,15 +68,16 @@ export const earnData = async (uid, req) => {
   );
 
   // =========================
-  // 💰 6. LEDGER
+  // 💰 6. MB LEDGER (FIXED)
   // =========================
-  await executeTransaction({
-    uid,
+  await executeMBTransaction({
+    userId: user._id, // ✅ FIXED
     type: "credit",
-    source: "earn",
     amount: earnAmount,
-    currency: "MB",
-    description: "Daily data earn reward",
+    reference: "MBEARN_" + Date.now(),
+    metadata: {
+      source: "earn"
+    }
   });
 
   // =========================
@@ -86,6 +88,9 @@ export const earnData = async (uid, req) => {
 
   await user.save();
 
+  // =========================
+  // 📦 8. RESPONSE
+  // =========================
   return {
     earnedMB: earnAmount,
     earnedToday: user.earnedToday,
