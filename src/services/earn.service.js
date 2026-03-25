@@ -18,7 +18,7 @@ export const earnData = async (uid, req) => {
   const now = new Date();
 
   // =========================
-  // 🔄 1. DAILY RESET (FIRST)
+  // 🔄 DAILY RESET
   // =========================
   const hoursSinceReset =
     (now - new Date(user.lastEarnReset || now)) / (1000 * 60 * 60);
@@ -28,24 +28,31 @@ export const earnData = async (uid, req) => {
     user.lastEarnReset = now;
     user.earnAttempts = 0;
   }
-   // =========================
-// 🧠 FRAUD CHECK
-// =========================
-const risk = evaluateUserRisk(user);
-
-if (user.isBlocked) {
-  throw new Error("Account temporarily restricted due to suspicious activity");
-}
-
 
   // =========================
-  // ⏳ 2. COOLDOWN CHECK
+  // 🚨 ALWAYS INCREMENT ATTEMPTS (FIX 🔥)
+  // =========================
+  user.earnAttempts = (user.earnAttempts || 0) + 1;
+
+  // =========================
+  // 🧠 FRAUD CHECK (AFTER ATTEMPTS)
+  // =========================
+  const risk = evaluateUserRisk(user);
+
+  if (user.isBlocked) {
+    await user.save();
+    throw new Error("Account temporarily restricted due to suspicious activity");
+  }
+
+  // =========================
+  // ⏳ COOLDOWN CHECK
   // =========================
   if (user.lastEarnedAt) {
     const secondsSinceLastEarn =
       (now - new Date(user.lastEarnedAt)) / 1000;
 
     if (secondsSinceLastEarn < EARN_RULES.COOLDOWN_SECONDS) {
+      await user.save();
       const wait = Math.ceil(
         EARN_RULES.COOLDOWN_SECONDS - secondsSinceLastEarn
       );
@@ -54,23 +61,15 @@ if (user.isBlocked) {
   }
 
   // =========================
-  // 🚫 3. DAILY CAP CHECK
+  // 🚫 DAILY CAP CHECK
   // =========================
   if (user.earnedToday >= EARN_RULES.DAILY_CAP_MB) {
+    await user.save();
     throw new Error("Daily earn limit reached");
   }
 
   // =========================
-  // 🚨 4. ABUSE DETECTION
-  // =========================
-  user.earnAttempts = (user.earnAttempts || 0) + 1;
-
-  if (user.earnAttempts > EARN_RULES.MAX_ATTEMPTS_PER_DAY) {
-    throw new Error("Suspicious activity detected. Try again later.");
-  }
- 
-  // =========================
-  // 🎯 5. CALCULATE EARN
+  // 🎯 CALCULATE EARN
   // =========================
   const earnAmount = Math.min(
     EARN_RULES.EARN_MB,
@@ -78,29 +77,24 @@ if (user.isBlocked) {
   );
 
   // =========================
-  // 💰 6. MB LEDGER (FIXED)
+  // 💰 LEDGER
   // =========================
   await executeMBTransaction({
-    userId: user._id, // ✅ FIXED
+    userId: user._id,
     type: "credit",
     amount: earnAmount,
     reference: "MBEARN_" + Date.now(),
-    metadata: {
-      source: "earn"
-    }
+    metadata: { source: "earn" }
   });
 
   // =========================
-  // 📊 7. UPDATE USER
+  // 📊 UPDATE USER
   // =========================
   user.earnedToday += earnAmount;
   user.lastEarnedAt = now;
 
   await user.save();
 
-  // =========================
-  // 📦 8. RESPONSE
-  // =========================
   return {
     earnedMB: earnAmount,
     earnedToday: user.earnedToday,
