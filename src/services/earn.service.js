@@ -28,6 +28,15 @@ export const earnData = async (uid, req) => {
     user.lastEarnReset = now;
     user.earnAttempts = 0;
   }
+   // =========================
+// 🧠 FRAUD CHECK
+// =========================
+const risk = evaluateUserRisk(user);
+
+if (user.isBlocked) {
+  throw new Error("Account temporarily restricted due to suspicious activity");
+}
+
 
   // =========================
   // ⏳ 2. COOLDOWN CHECK
@@ -59,15 +68,7 @@ export const earnData = async (uid, req) => {
   if (user.earnAttempts > EARN_RULES.MAX_ATTEMPTS_PER_DAY) {
     throw new Error("Suspicious activity detected. Try again later.");
   }
-  // =========================
-// 🧠 FRAUD CHECK
-// =========================
-const risk = evaluateUserRisk(user);
-
-if (user.isBlocked) {
-  throw new Error("Account temporarily restricted due to suspicious activity");
-}
-
+ 
   // =========================
   // 🎯 5. CALCULATE EARN
   // =========================
