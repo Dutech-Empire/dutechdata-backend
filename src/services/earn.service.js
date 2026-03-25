@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import { executeMBTransaction } from "../services/mbLedger.service.js";
 import { EARN_RULES } from "../utils/earnRules.js";
 import { trackUserAccess } from "../utils/securityTracker.js";
+import { evaluateUserRisk } from "../services/fraud.service.js";
 
 export const earnData = async (uid, req) => {
   const user = await User.findById(uid);
@@ -58,6 +59,14 @@ export const earnData = async (uid, req) => {
   if (user.earnAttempts > EARN_RULES.MAX_ATTEMPTS_PER_DAY) {
     throw new Error("Suspicious activity detected. Try again later.");
   }
+  // =========================
+// 🧠 FRAUD CHECK
+// =========================
+const risk = evaluateUserRisk(user);
+
+if (user.isBlocked) {
+  throw new Error("Account temporarily restricted due to suspicious activity");
+}
 
   // =========================
   // 🎯 5. CALCULATE EARN

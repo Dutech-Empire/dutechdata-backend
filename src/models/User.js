@@ -92,6 +92,18 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // =========================
+// 🧠 FRAUD SYSTEM
+// =========================
+riskScore: {
+  type: Number,
+  default: 0,
+},
+
+isBlocked: {
+  type: Boolean,
+  default: false,
+},
 
     // =========================
     // 🛡️ SECURITY TRACKING (NEW)
@@ -116,6 +128,7 @@ const userSchema = new mongoose.Schema(
       default: [],
     },
   },
+  
   {
     timestamps: true,
   }
