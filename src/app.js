@@ -10,6 +10,7 @@ import transactionRoutes from "./routes/transaction.routes.js";
 import { globalLimiter } from "./middlewares/rateLimit.middleware.js";
 import mbRoutes from "./routes/mb.routes.js";
 import usageRoutes from "./routes/usage.routes.js";
+import meRoutes from "./routes/me.routes.js";
 
 
 
@@ -43,6 +44,7 @@ app.use("/api/transactions", transactionRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/mb", mbRoutes);
 app.use("/api/usage", usageRoutes);
+app.use("/api/me", meRoutes);
 
 
 
